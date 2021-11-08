@@ -1,0 +1,17 @@
+Program = _{ SOI ~ "main" ~ "{" ~ (CrementBinary | Variable | Expr | FunctionCall| CrementBinary) +  ~ "}" ~ Function+? ~ EOI}
+Function = {"fn" ~ Name ~ "()" ~"{" ~ Expr  ~ Return ~ "}" }
+FunctionCall = {Name ~ "();"  }
+Variable = {"let" ~ Name ~ "=" ~ (Term | FunctionCall | Name) ~ ";"}
+Return = {Name | Term | Expr}
+Expr = {Binary| Unary  }
+Name = @{ASCII_ALPHA+}
+Term = _{Int | "(" ~ Expr ~ ")" }
+Unary = { Operator ~ Term }
+CrementBinary = { Int ~ CrementOperator ~ ";"}
+//TODO CrementBinary = { Name ~ CrementOperator ~ ";"}
+Binary = {  Term ~ (Operator ~ Term)*  }
+Operator = { "+" | "-"  | "*" | "/" }
+CrementOperator = {"++" | "--"}
+Int = @{ Operator? ~ ASCII_DIGIT+ }
+WHITESPACE = _{ " " | "\t" }
+EOF = _{ EOI | ";" }

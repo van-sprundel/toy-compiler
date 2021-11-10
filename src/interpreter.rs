@@ -1,8 +1,8 @@
 use std::io::ErrorKind;
-use pest::error::Error;
+
 use crate::*;
-use crate::ast::{Function, Var};
-use crate::parser::Rule;
+use crate::ast::{Function};
+
 
 pub trait Compile {
     type Output;
@@ -49,7 +49,7 @@ impl Compile for Interpreter {
 
 #[cfg(test)]
 mod tests {
-    use std::io;
+    
     #[allow(unused_imports)]
     use crate::interpreter::{Interpreter, Compile};
 

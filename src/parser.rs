@@ -1,6 +1,6 @@
 use std::io::ErrorKind;
 use pest::error::InputLocation;
-use pest::iterators::Pair;
+
 use crate::ast::*;
 use pest::Parser;
 
@@ -100,7 +100,7 @@ impl CodeParser {
             Rule::CrementBinary => {
                 let mut pair = pair.into_inner();
                 let lhs = pair.next().unwrap();
-                let op = pair.next().unwrap();
+                let _op = pair.next().unwrap();
                 Self::parse_variable(lhs,Expr::Literal(1))
             }
             _ => unimplemented!()

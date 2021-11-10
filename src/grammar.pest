@@ -1,16 +1,19 @@
-Program = _{ SOI ~ "main" ~ "{" ~ (CrementBinary | Variable | Expr | FunctionCall| CrementBinary) +  ~ "}" ~ Function+? ~ EOI}
-Function = {"fn" ~ Name ~ "()" ~"{" ~ Expr  ~ Return ~ "}" }
-FunctionCall = {Name ~ "();"  }
-Variable = {"let" ~ Name ~ "=" ~ (Term | FunctionCall | Name) ~ ";"}
-Return = {Name | Term | Expr}
-Expr = {Binary| Unary  }
+Program = _{ SOI  ~ Function+? ~ EOI}
+Function = {"fn" ~ Name ~ "("~ arg*~")" ~"{" ~ (Variable | Expr | FunctionCall| CrementBinary)*?  ~ Return? ~ "}" }
+FunctionCall = {Name ~ "(" ~ param* ~ ");"  }
+arg = {Name ~ ":" ~ Type}
+Type = @{ASCII_ALPHA+}
+param = @{ASCII_ALPHA+}
+Variable = {"let" ~ Name ~ "=" ~ (Binary | Int | FunctionCall | Name) ~ ";"}
+Return = @{Name | Term | Expr}
+Expr = {Binary| Unary  | Term }
 Name = @{ASCII_ALPHA+}
 Term = _{Int | "(" ~ Expr ~ ")" }
-Unary = { Operator ~ Term }
-CrementBinary = { Int ~ CrementOperator ~ ";"}
-//TODO CrementBinary = { Name ~ CrementOperator ~ ";"}
+Unary = { UnaryOperator ~ Term }
+CrementBinary = { Name ~ CrementOperator ~ ";"}
 Binary = {  Term ~ (Operator ~ Term)*  }
-Operator = { "+" | "-"  | "*" | "/" }
+Operator = { UnaryOperator | "*" | "/" }
+UnaryOperator = _{ "+" | "-" }
 CrementOperator = {"++" | "--"}
 Int = @{ Operator? ~ ASCII_DIGIT+ }
 WHITESPACE = _{ " " | "\t" }

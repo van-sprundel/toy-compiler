@@ -12,50 +12,96 @@ struct PestParser;
 pub(crate) struct CodeParser;
 
 impl CodeParser {
-    pub fn parse(&self, source: &str) -> std::result::Result<Vec<Var>, std::io::Error> {
+    pub fn parse(&self, source: &str) -> std::result::Result<Vec<Function>, std::io::Error> {
         let mut ast = vec![];
         match PestParser::parse(Rule::Program, source) {
             Ok(pairs) => {
                 for pair in pairs {
-                    if let Rule::Variable = pair.as_rule() {
-                        ast.push(self.build_ast(pair));
-                    } else     if let Rule::CrementBinary = pair.as_rule() {
+                    if let Rule::Function = pair.as_rule() {
                         ast.push(self.build_ast(pair));
                     }
-
                 }
                 Ok(ast)
             }
             Err(e) => {
                 if e.location == InputLocation::Pos(0) {
-                    Err(std::io::Error::new(ErrorKind::InvalidInput, "Cannot find main function"))
+                    Err(std::io::Error::new(ErrorKind::InvalidInput, "Cannot parse file"))
                 } else {
-                    Err(std::io::Error::new(ErrorKind::InvalidInput,                 e.to_string()))
+                    Err(std::io::Error::new(ErrorKind::InvalidInput, e.to_string()))
                 }
             }
         }
     }
-    pub fn build_ast(&self, pair: pest::iterators::Pair<Rule>) -> Var {
+    pub fn build_ast(&self, pair: pest::iterators::Pair<Rule>) -> Function {
+        match pair.as_rule() {
+            Rule::Function => {
+                let mut pair = pair.into_inner();
+                let name = pair.next().unwrap();
+                // if name.as_str() == "main" {
+                //     let expr = self.build_ast_from_expr(pair.next().unwrap());
+                //     Function {
+                //         name: String::from(name.as_str()),
+                //         args: String::new(),
+                //         expr,
+                //         ret:0
+                //     }
+                // } else {
+                let a = pair.next().unwrap();
+                let var;
+                let arg = if let Rule::arg = a.as_rule() {
+                    var = self.build_var_from_expr(pair.next().unwrap());
+                    String::from(a.as_str())
+                } else {
+                    var = self.build_var_from_expr(a);
+                    String::new()
+                };
+                let mut vars = vec![var];
+                let mut exprs = vec![];
+                let mut temp = pair.next();
+                while temp.is_some() {
+                    let p = temp.unwrap();
+                    match p.as_rule() {
+                        Rule::Variable => {
+                            vars.push(self.build_var_from_expr(p));
+                        }
+                        _ => {
+                            exprs.push(self.build_ast_from_expr(p));
+                        }
+                    }
+
+                    temp = pair.next();
+                }
+                let ret = if let Some(pair) = temp {
+                    panic!("{}",pair.as_str());
+                } else {
+                    0
+                };
+                Function {
+                    name: String::from(name.as_str()),
+                    args: String::from(arg.as_str()),
+                    vars,
+                    exprs,
+                    ret,
+                }
+                // }
+            }
+            _ => unimplemented!()
+        }
+    }
+    pub fn build_var_from_expr(&self, pair: pest::iterators::Pair<Rule>) -> Var {
         match pair.as_rule() {
             Rule::Variable => {
                 let mut pair = pair.into_inner();
                 let name = pair.next().unwrap();
-                let expr = self.build_ast_from_expr(pair.next().unwrap());
-                Var {
-                    name: String::from(name.as_str()),
-                    expr,
-                }
+                let res = pair.next().unwrap();
+                let expr = self.build_ast_from_expr(res);
+                Self::parse_variable(name, expr)
             },
             Rule::CrementBinary => {
                 let mut pair = pair.into_inner();
                 let lhs = pair.next().unwrap();
-                let lhs = self.build_ast_from_term(lhs);
                 let op = pair.next().unwrap();
-                let expr = Self::parse_binary_expr(op, lhs, Expr::Literal(1));
-                Var {
-                    name: String::from("empty"),
-                    expr,
-                }
+                Self::parse_variable(lhs,Expr::Literal(1))
             }
             _ => unimplemented!()
         }
@@ -63,6 +109,28 @@ impl CodeParser {
     pub fn build_ast_from_expr(&self, pair: pest::iterators::Pair<Rule>) -> Expr {
         match pair.as_rule() {
             Rule::Expr => self.build_ast_from_expr(pair.into_inner().next().unwrap()),
+            Rule::Binary => {
+                let mut pair = pair.into_inner();
+                let lhspair = pair.next().unwrap();
+                match pair.next() {
+                    Some(p) => {
+                        let lhs = self.build_ast_from_expr(lhspair);
+                        let op = p;
+                        let rhspair = pair.next().unwrap();
+                        let rhs = self.build_ast_from_expr(rhspair);
+                        CodeParser::parse_binary_expr(op, lhs, rhs)
+                    },
+                    None => {
+                        let istr = lhspair.as_str();
+                        let (sign, istr) = match &istr[..1] {
+                            "-" => (-1, &istr[1..]),
+                            _ => (1, istr),
+                        };
+                        let int: i32 = istr.parse().unwrap();
+                        CodeParser::parse_term(sign, int)
+                    }
+                }
+            }
             Rule::Term | Rule::Int => {
                 let istr = pair.as_str();
                 let (sign, istr) = match &istr[..1] {
@@ -72,7 +140,9 @@ impl CodeParser {
                 let int: i32 = istr.parse().unwrap();
                 CodeParser::parse_term(sign, int)
             }
-
+            Rule::Name => {
+                Expr::Reference(pair.as_str().parse().unwrap())
+            }
             Rule::Unary => {
                 let mut pair = pair.into_inner();
                 let op = pair.next().unwrap();
@@ -82,28 +152,13 @@ impl CodeParser {
             }
             Rule::CrementBinary => {
                 let mut pair = pair.into_inner();
-                let lhs = pair.next().unwrap();
-                let lhs = self.build_ast_from_term(lhs);
-                let op = pair.next().unwrap();
-                CodeParser::parse_binary_expr(op, lhs, Expr::Literal(1))
-            }
-            Rule::Binary => {
-                let mut pair = pair.into_inner();
                 let lhspair = pair.next().unwrap();
-                let lhs = self.build_ast_from_term(lhspair);
+                let lhs = self.build_ast_from_expr(lhspair);
                 let op = pair.next().unwrap();
-                let rhspair = pair.next().unwrap();
-                let rhs = self.build_ast_from_term(rhspair);
-                CodeParser::parse_binary_expr(op, lhs, rhs)
+                CodeParser::parse_binary_expr( op,lhs, Expr::Literal(1))
             }
-            Rule::Variable => {
-                let mut pair = pair.into_inner();
-                // pair.next(); // var
-                let name = pair.next().unwrap();
-                // pair.next(); // =
-                let expr = pair.next().unwrap();
-                let expr = self.build_ast_from_expr(expr);
-                Self::parse_variable(name, expr).expr
+            Rule::FunctionCall => {
+                Expr::Reference(pair.as_str().parse().unwrap())
             }
             unknown => panic!("Unknown expr: {:?}", unknown),
         }
@@ -180,15 +235,20 @@ impl Eval {
                 let lhs_ret = self.eval(lhs);
                 let rhs_ret = self.eval(rhs);
 
-                match op {
-                    Operator::Add => lhs_ret + rhs_ret,
-                    Operator::Sub => lhs_ret - rhs_ret,
+                let res = match op {
+                    Operator::Add => lhs_ret.wrapping_add(rhs_ret),
+                    Operator::Sub => lhs_ret.wrapping_sub(rhs_ret),
                     Operator::Mul => lhs_ret * rhs_ret,
                     Operator::Div => lhs_ret / rhs_ret,
-                    Operator::Incr => lhs_ret + 1,
-                    Operator::Decr => lhs_ret - 1,
+                    Operator::Incr => lhs_ret.wrapping_add(1),
+                    Operator::Decr => lhs_ret.wrapping_sub(1),
                     Operator::Comp => !lhs_ret,
-                }
+                };
+                println!("{:?} = {}", node, res);
+                res
+            }
+            Expr::Reference(_) => {
+                0
             }
         }
     }

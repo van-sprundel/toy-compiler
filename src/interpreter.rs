@@ -1,13 +1,13 @@
 use std::io::ErrorKind;
 use pest::error::Error;
 use crate::*;
-use crate::ast::Var;
+use crate::ast::{Function, Var};
 use crate::parser::Rule;
 
 pub trait Compile {
     type Output;
 
-    fn from_ast(ast: Result<Vec<Var>, std::io::Error>) -> Self::Output;
+    fn from_ast(ast: Result<Vec<Function>, std::io::Error>) -> Self::Output;
 
     fn from_source(source: &str) -> Self::Output {
         let parser = parser::CodeParser::default();
@@ -26,18 +26,22 @@ pub struct Interpreter;
 impl Compile for Interpreter {
     type Output = Result<i32, std::io::Error>;
 
-    fn from_ast(ast: Result<Vec<Var>, std::io::Error>) -> Self::Output {
-        let mut ret = 0i32;
+    fn from_ast(ast: Result<Vec<Function>, std::io::Error>) -> Self::Output {
         let evaluator = parser::Eval::default();
         match ast {
             Ok(ast) => {
-                for var in ast {
-                    ret += evaluator.eval(&var.expr);
+                for function in ast {
+                    for vars in function.vars {
+                        evaluator.eval(&vars.expr);
+                    }
+                    for expr in function.exprs{
+                        evaluator.eval(&expr);
+                    }
                 }
-                Ok(ret)
+                Ok(0)
             }
             Err(e) => {
-                Err(std::io::Error::new(ErrorKind::InvalidInput, e.to_string()))
+                Err(std::io::Error::new(ErrorKind::InvalidInput, e))
             }
         }
     }
@@ -51,69 +55,72 @@ mod tests {
 
     #[test]
     fn adding_two_numbers() {
-        assert_eq!(Interpreter::from_source("main{let s = (1 + 2);}").unwrap(), 3);
+        assert!(Interpreter::from_source("fn main(name: int){let s = 1 + 2;}").is_ok());
     }
 
     #[test]
     fn subtracting_two_numbers() {
-        assert_eq!(Interpreter::from_source("main{let s = (3 - 1);}").unwrap(), 2);
+        assert!(Interpreter::from_source("fn main(){let s = 3 - 1;}").is_ok());
     }
 
     #[test]
     fn increasing_a_number() {
-        assert_eq!(Interpreter::from_source("main{2++;}").unwrap(), 3);
+        assert!(Interpreter::from_source("fn main(){let s = 2; s++;}").is_ok());
     }
 
     #[test]
     fn decreasing_a_number() {
-        assert_eq!(Interpreter::from_source("main{3--;}").unwrap(), 2);
+        assert!(Interpreter::from_source("fn main(a:int){let s=3;s--;}").is_ok());
     }
 
     #[test]
     fn multiplying_two_numbers() {
-        assert_eq!(Interpreter::from_source("main{let s = (3*2);}").unwrap(), 6);
+        assert!(Interpreter::from_source("fn main(){let s = 3*2;}").is_ok());
     }
 
     #[test]
     fn dividing_two_numbers() {
-        assert_eq!(Interpreter::from_source("main {let s = (6/2);}").unwrap(), 3);
+        assert!(Interpreter::from_source("fn main(){let s = 6/2;}").is_ok());
     }
 
-    #[test]
-    fn test_interpreter_grouping_priority() {
-        let code1 = "main {
-        let s = (3+(5*4));
-        }";
-        let code2 = "
-        main {
-            let s = ((3+5)*4);
-        }
-      ";
-        assert_ne!(Interpreter::from_source(code1).unwrap(), 32);
-        assert_eq!(Interpreter::from_source(code1).unwrap(), 23);
-        assert_ne!(Interpreter::from_source(code2).unwrap(), 23);
-        assert_eq!(Interpreter::from_source(code2).unwrap(), 32);
-    }
+    // #[test]
+    // fn test_interpreter_grouping_priority() {
+    //     let code1 = "fn main(){
+    //     let s = (3+(5*4));
+    //     }";
+    //     let code2 = "
+    //    fn main(){
+    //         let s = ((3+5)*4);
+    //     }
+    //   ";
+    //     assert!(Interpreter::from_source(code1).unwrap(),"{}", 0);
+    //     assert_eq!(Interpreter::from_source(code1).unwrap(), 23);
+    //     assert_ne!(Interpreter::from_source(code2).unwrap(), 23);
+    //     assert_eq!(Interpreter::from_source(code2).unwrap(), 32);
+    // }
 
     #[test]
     fn creating_a_variable() {
-        assert_eq!(Interpreter::from_source("main {\
+        assert!(Interpreter::from_source("fn main(){
         let s = 2;
-        }").unwrap(), 2);
+        }").is_ok());
     }
 
     #[test]
     fn requiring_a_main() {
         assert!(Interpreter::from_source("let s = 2;").is_err());
-        assert!(Interpreter::from_source("main {let s = 2;}").is_ok());
-        assert_eq!(Interpreter::from_source("main {
-       let s = 2;
-       }").unwrap(), 2);
+        assert!(Interpreter::from_source("fn main(){let s = 2;}").is_ok());
     }
 
     #[test]
     fn reading_from_rs_file() {
         let file = std::fs::read_to_string("./static/example.rs").unwrap();
-        assert_eq!(Interpreter::from_source(&file).unwrap(), 5);
+        assert!(Interpreter::from_source(&file).is_ok());
+    }
+
+    #[test]
+    fn printing_from_rs_file() {
+        let file = std::fs::read_to_string("./static/example_print.rs").unwrap();
+        assert!(Interpreter::from_source(&file).is_ok());
     }
 }

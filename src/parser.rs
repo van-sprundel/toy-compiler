@@ -1,9 +1,9 @@
-use std::io::ErrorKind;
 use pest::error::InputLocation;
+use std::io::ErrorKind;
 
 use crate::ast::*;
-use pest::Parser;
 use crate::memory::Memory;
+use pest::Parser;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "grammar.pest"]
@@ -34,12 +34,18 @@ impl CodeParser {
                 if contains_main {
                     Ok(ast)
                 } else {
-                    Err(std::io::Error::new(ErrorKind::InvalidInput, "Main function not found"))
+                    Err(std::io::Error::new(
+                        ErrorKind::InvalidInput,
+                        "Main function not found",
+                    ))
                 }
             }
             Err(e) => {
                 if e.location == InputLocation::Pos(0) {
-                    Err(std::io::Error::new(ErrorKind::InvalidInput, "Cannot parse file"))
+                    Err(std::io::Error::new(
+                        ErrorKind::InvalidInput,
+                        "Cannot parse file",
+                    ))
                 } else {
                     Err(std::io::Error::new(ErrorKind::InvalidInput, e.to_string()))
                 }
@@ -89,7 +95,7 @@ impl CodeParser {
                     ret,
                 }
             }
-            _ => unimplemented!()
+            _ => unimplemented!(),
         }
     }
     pub fn build_var_from_expr(&self, pair: pest::iterators::Pair<Rule>) -> Var {
@@ -107,7 +113,7 @@ impl CodeParser {
                 let _op = pair.next().unwrap();
                 Self::parse_variable(lhs, Expr::Literal(1))
             }
-            _ => unimplemented!()
+            _ => unimplemented!(),
         }
     }
     pub fn build_ast_from_expr(&self, pair: pest::iterators::Pair<Rule>) -> Expr {
@@ -144,9 +150,7 @@ impl CodeParser {
                 let int: i32 = istr.parse().unwrap();
                 CodeParser::parse_term(sign, int)
             }
-            Rule::Name => {
-                Expr::Reference(pair.as_str().parse().unwrap())
-            }
+            Rule::Name => Expr::Reference(pair.as_str().parse().unwrap()),
             Rule::Unary => {
                 let mut pair = pair.into_inner();
                 let op = pair.next().unwrap();
@@ -161,9 +165,7 @@ impl CodeParser {
                 let op = pair.next().unwrap();
                 CodeParser::parse_binary_expr(op, lhs, Expr::Literal(1))
             }
-            Rule::FunctionCall => {
-                Expr::Reference(pair.as_str().parse().unwrap())
-            }
+            Rule::FunctionCall => Expr::Reference(pair.as_str().parse().unwrap()),
             unknown => panic!("Unknown expr: {:?}", unknown),
         }
     }
@@ -220,14 +222,12 @@ impl CodeParser {
     }
 }
 
+#[derive(Default)]
 pub struct Eval {
     pub memory: Memory,
 }
 
 impl Eval {
-    pub fn new(memory: Memory) -> Self {
-        Self { memory }
-    }
     pub fn eval(&self, node: &Expr) -> i32 {
         match node {
             Expr::Literal(n) => *n,
@@ -236,7 +236,7 @@ impl Eval {
                 match op {
                     Operator::Add => child,
                     Operator::Sub => -child,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             }
             Expr::Binary { op, lhs, rhs } => {
@@ -249,15 +249,15 @@ impl Eval {
                     Operator::Mul => lhs_ret * rhs_ret,
                     Operator::Div => lhs_ret / rhs_ret,
                     Operator::Incr => lhs_ret.wrapping_add(1),
-                    Operator::Decr =>lhs_ret.wrapping_sub(1),
-                    Operator::Comp => !lhs_ret
+                    Operator::Decr => lhs_ret.wrapping_sub(1),
+                    Operator::Comp => !lhs_ret,
                 };
                 println!("{:?} = {}", node, res);
                 res
             }
             Expr::Reference(n) => {
                 if let Ok(e) = self.memory.find(n) {
-                    self.eval(&e)
+                    self.eval(e)
                 } else {
                     panic!("Couldn't find referenced variable");
                 }

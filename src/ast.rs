@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Debug)]
 pub struct Function {
@@ -17,10 +17,18 @@ pub struct Var {
 impl Debug for Var {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.expr {
-            Expr::Unary { child, op } => { write!(f, "let {} = {:?}{:?}", &self.name, child, op) }
-            Expr::Binary { lhs, op, rhs } => { write!(f, "let {} = {:?} {:?} {:?}", &self.name, lhs, op, rhs) }
-            Expr::Literal(s) => { write!(f, "let {} = {}", &self.name, s) }
-            Expr::Reference(s) => { write!(f, "let {} = {}", &self.name, s) }
+            Expr::Unary { child, op } => {
+                write!(f, "let {} = {:?}{:?}", &self.name, child, op)
+            }
+            Expr::Binary { lhs, op, rhs } => {
+                write!(f, "let {} = {:?} {:?} {:?}", &self.name, lhs, op, rhs)
+            }
+            Expr::Literal(s) => {
+                write!(f, "let {} = {}", &self.name, s)
+            }
+            Expr::Reference(s) => {
+                write!(f, "let {} = {}", &self.name, s)
+            }
         }
     }
 }
@@ -45,23 +53,35 @@ pub enum Expr {
 impl Debug for Expr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expr::Unary { child, op } => {
-                match op {
-                    Operator::Add => { write!(f, "{:?}", child) }
-                    Operator::Sub => { write!(f, "-{:?}", child) }
-                    _ => unimplemented!()
+            Expr::Unary { child, op } => match op {
+                Operator::Add => {
+                    write!(f, "{:?}", child)
                 }
-            }
-            Expr::Binary { lhs, op, rhs } => {
-                match op {
-                    Operator::Incr => { write!(f, "{:?}", lhs) }
-                    Operator::Decr => { write!(f, "{:?}--", lhs) }
-                    Operator::Comp => { write!(f, "!{:?}", lhs) }
-                    _ => { write!(f, "{:?} {:?} {:?}", lhs, op, rhs) }
+                Operator::Sub => {
+                    write!(f, "-{:?}", child)
                 }
+                _ => unimplemented!(),
+            },
+            Expr::Binary { lhs, op, rhs } => match op {
+                Operator::Incr => {
+                    write!(f, "{:?}", lhs)
+                }
+                Operator::Decr => {
+                    write!(f, "{:?}--", lhs)
+                }
+                Operator::Comp => {
+                    write!(f, "!{:?}", lhs)
+                }
+                _ => {
+                    write!(f, "{:?} {:?} {:?}", lhs, op, rhs)
+                }
+            },
+            Expr::Literal(i) => {
+                write!(f, "{}", i)
             }
-            Expr::Literal(i) => { write!(f, "{}", i) }
-            Expr::Reference(s) => { write!(f, "{}", s) }
+            Expr::Reference(s) => {
+                write!(f, "{}", s)
+            }
         }
     }
 }
@@ -86,14 +106,32 @@ pub enum Operator {
 
 impl Debug for Operator {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",match self {
-            Operator::Add => { "+" }
-            Operator::Sub => { "-" }
-            Operator::Mul => { "*" }
-            Operator::Div => { "/" }
-            Operator::Incr => { "++" }
-            Operator::Decr => { "--" }
-            Operator::Comp => { "!" }
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Operator::Add => {
+                    "+"
+                }
+                Operator::Sub => {
+                    "-"
+                }
+                Operator::Mul => {
+                    "*"
+                }
+                Operator::Div => {
+                    "/"
+                }
+                Operator::Incr => {
+                    "++"
+                }
+                Operator::Decr => {
+                    "--"
+                }
+                Operator::Comp => {
+                    "!"
+                }
+            }
+        )
     }
 }

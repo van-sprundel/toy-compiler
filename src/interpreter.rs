@@ -1,8 +1,6 @@
-use std::io::ErrorKind;
-
-use crate::*;
 use crate::ast::Function;
-use crate::memory::Memory;
+use crate::*;
+use std::io::ErrorKind;
 
 pub trait Compile {
     type Output;
@@ -11,9 +9,7 @@ pub trait Compile {
 
     fn from_source(source: &str) -> Self::Output {
         let parser = parser::CodeParser::default();
-        let source = source
-            .replace("\r", "")
-            .replace("\n", "");
+        let source = source.replace("\r", "").replace("\n", "");
         println!("Compiling source:\n  {}", source);
         let ast = parser.parse(&source);
         println!("  {:?}", ast);
@@ -26,8 +22,7 @@ impl Compile for Interpreter {
     type Output = Result<i32, std::io::Error>;
 
     fn from_ast(ast: Result<Vec<Function>, std::io::Error>) -> Self::Output {
-        let mut memory = Memory::new();
-        let mut evaluator = parser::Eval::new(memory);
+        let mut evaluator = parser::Eval::default();
         match ast {
             Ok(ast) => {
                 for function in ast {
@@ -35,22 +30,20 @@ impl Compile for Interpreter {
                         evaluator.memory.add(&var);
                         evaluator.eval(&var.expr);
                     }
-                    for expr in function.exprs{
+                    for expr in function.exprs {
                         evaluator.eval(&expr);
                     }
                 }
                 Ok(0)
             }
-            Err(e) => {
-                Err(std::io::Error::new(ErrorKind::InvalidInput, e))
-            }
+            Err(e) => Err(std::io::Error::new(ErrorKind::InvalidInput, e)),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::interpreter::{Interpreter, Compile};
+    use crate::interpreter::{Compile, Interpreter};
 
     #[test]
     fn adding_two_numbers() {
@@ -84,9 +77,12 @@ mod tests {
 
     #[test]
     fn creating_a_variable() {
-        assert!(Interpreter::from_source("fn main(){
+        assert!(Interpreter::from_source(
+            "fn main(){
         let s = 2;
-        }").is_ok());
+        }"
+        )
+        .is_ok());
     }
 
     #[test]
@@ -111,14 +107,17 @@ mod tests {
 
     #[test]
     fn have_two_functions_in_one_file() {
-        assert!(Interpreter::from_source("fn main(){let s = 2;} fn foo(name:int){let p = 2;}").is_ok());
+        assert!(
+            Interpreter::from_source("fn main(){let s = 2;} fn foo(name:int){let p = 2;}").is_ok()
+        );
     }
-
 
     #[test]
     fn guarantee_main_function_is_first() {
-        let a = Interpreter::from_source(" fn main(){let s = 2;} fn foo(name:int){let p = 2;}").unwrap();
-        let b = Interpreter::from_source("fn foo(name:int){let p = 2;} fn main(){let s = 2;} ").unwrap();
-        assert_eq!(a,b);
+        let a = Interpreter::from_source(" fn main(){let s = 2;} fn foo(name:int){let p = 2;}")
+            .unwrap();
+        let b = Interpreter::from_source("fn foo(name:int){let p = 2;} fn main(){let s = 2;} ")
+            .unwrap();
+        assert_eq!(a, b);
     }
 }

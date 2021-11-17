@@ -14,9 +14,9 @@ pub trait Compile {
         let source = source
             .replace("\r", "")
             .replace("\n", "");
-        println!("Compiling source: \n{}", source);
+        println!("Compiling source:\n  {}", source);
         let ast = parser.parse(&source);
-        println!("{:?}", ast);
+        println!("  {:?}", ast);
         Self::from_ast(ast)
     }
 }
@@ -49,8 +49,6 @@ impl Compile for Interpreter {
 
 #[cfg(test)]
 mod tests {
-    
-    #[allow(unused_imports)]
     use crate::interpreter::{Interpreter, Compile};
 
     #[test]
@@ -83,22 +81,6 @@ mod tests {
         assert!(Interpreter::from_source("fn main(){let s = 6/2;}").is_ok());
     }
 
-    // #[test]
-    // fn test_interpreter_grouping_priority() {
-    //     let code1 = "fn main(){
-    //     let s = (3+(5*4));
-    //     }";
-    //     let code2 = "
-    //    fn main(){
-    //         let s = ((3+5)*4);
-    //     }
-    //   ";
-    //     assert!(Interpreter::from_source(code1).unwrap(),"{}", 0);
-    //     assert_eq!(Interpreter::from_source(code1).unwrap(), 23);
-    //     assert_ne!(Interpreter::from_source(code2).unwrap(), 23);
-    //     assert_eq!(Interpreter::from_source(code2).unwrap(), 32);
-    // }
-
     #[test]
     fn creating_a_variable() {
         assert!(Interpreter::from_source("fn main(){
@@ -108,7 +90,9 @@ mod tests {
 
     #[test]
     fn requiring_a_main() {
+        assert!(Interpreter::from_source("").is_err());
         assert!(Interpreter::from_source("let s = 2;").is_err());
+        assert!(Interpreter::from_source("fn foo(){let s = 2;}").is_err());
         assert!(Interpreter::from_source("fn main(){let s = 2;}").is_ok());
     }
 

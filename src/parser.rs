@@ -16,12 +16,19 @@ impl CodeParser {
         let mut ast = vec![];
         match PestParser::parse(Rule::Program, source) {
             Ok(pairs) => {
+                let mut contains_main = false;
                 for pair in pairs {
                     if let Rule::Function = pair.as_rule() {
-                        ast.push(self.build_ast(pair));
+                        let f = self.build_ast(pair);
+                        if f.name == "main" { contains_main = true }
+                        ast.push(f);
                     }
                 }
-                Ok(ast)
+                if contains_main {
+                    Ok(ast)
+                } else {
+                    Err(std::io::Error::new(ErrorKind::InvalidInput, "Main function not found"))
+                }
             }
             Err(e) => {
                 if e.location == InputLocation::Pos(0) {
@@ -37,15 +44,6 @@ impl CodeParser {
             Rule::Function => {
                 let mut pair = pair.into_inner();
                 let name = pair.next().unwrap();
-                // if name.as_str() == "main" {
-                //     let expr = self.build_ast_from_expr(pair.next().unwrap());
-                //     Function {
-                //         name: String::from(name.as_str()),
-                //         args: String::new(),
-                //         expr,
-                //         ret:0
-                //     }
-                // } else {
                 let a = pair.next().unwrap();
                 let var;
                 let arg = if let Rule::arg = a.as_rule() {
@@ -72,7 +70,7 @@ impl CodeParser {
                     temp = pair.next();
                 }
                 let ret = if let Some(pair) = temp {
-                    panic!("{}",pair.as_str());
+                    panic!("{}", pair.as_str());
                 } else {
                     0
                 };
@@ -83,7 +81,6 @@ impl CodeParser {
                     exprs,
                     ret,
                 }
-                // }
             }
             _ => unimplemented!()
         }
@@ -96,12 +93,12 @@ impl CodeParser {
                 let res = pair.next().unwrap();
                 let expr = self.build_ast_from_expr(res);
                 Self::parse_variable(name, expr)
-            },
+            }
             Rule::CrementBinary => {
                 let mut pair = pair.into_inner();
                 let lhs = pair.next().unwrap();
                 let _op = pair.next().unwrap();
-                Self::parse_variable(lhs,Expr::Literal(1))
+                Self::parse_variable(lhs, Expr::Literal(1))
             }
             _ => unimplemented!()
         }
@@ -119,7 +116,7 @@ impl CodeParser {
                         let rhspair = pair.next().unwrap();
                         let rhs = self.build_ast_from_expr(rhspair);
                         CodeParser::parse_binary_expr(op, lhs, rhs)
-                    },
+                    }
                     None => {
                         let istr = lhspair.as_str();
                         let (sign, istr) = match &istr[..1] {
@@ -155,7 +152,7 @@ impl CodeParser {
                 let lhspair = pair.next().unwrap();
                 let lhs = self.build_ast_from_expr(lhspair);
                 let op = pair.next().unwrap();
-                CodeParser::parse_binary_expr( op,lhs, Expr::Literal(1))
+                CodeParser::parse_binary_expr(op, lhs, Expr::Literal(1))
             }
             Rule::FunctionCall => {
                 Expr::Reference(pair.as_str().parse().unwrap())

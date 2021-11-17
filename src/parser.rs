@@ -3,6 +3,7 @@ use pest::error::InputLocation;
 
 use crate::ast::*;
 use pest::Parser;
+use crate::memory::Memory;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "grammar.pest"]
@@ -20,8 +21,14 @@ impl CodeParser {
                 for pair in pairs {
                     if let Rule::Function = pair.as_rule() {
                         let f = self.build_ast(pair);
-                        if f.name == "main" { contains_main = true }
-                        ast.push(f);
+                        if f.name == "main" {
+                            contains_main = true;
+                            let mut temp = vec![f];
+                            temp.append(&mut ast);
+                            ast = temp;
+                        } else {
+                            ast.push(f);
+                        }
                     }
                 }
                 if contains_main {
@@ -213,10 +220,14 @@ impl CodeParser {
     }
 }
 
-#[derive(Default)]
-pub struct Eval;
+pub struct Eval {
+    pub memory: Memory,
+}
 
 impl Eval {
+    pub fn new(memory: Memory) -> Self {
+        Self { memory }
+    }
     pub fn eval(&self, node: &Expr) -> i32 {
         match node {
             Expr::Literal(n) => *n,
@@ -238,14 +249,18 @@ impl Eval {
                     Operator::Mul => lhs_ret * rhs_ret,
                     Operator::Div => lhs_ret / rhs_ret,
                     Operator::Incr => lhs_ret.wrapping_add(1),
-                    Operator::Decr => lhs_ret.wrapping_sub(1),
-                    Operator::Comp => !lhs_ret,
+                    Operator::Decr =>lhs_ret.wrapping_sub(1),
+                    Operator::Comp => !lhs_ret
                 };
                 println!("{:?} = {}", node, res);
                 res
             }
-            Expr::Reference(_) => {
-                0
+            Expr::Reference(n) => {
+                if let Ok(e) = self.memory.find(n) {
+                    self.eval(&e)
+                } else {
+                    panic!("Couldn't find referenced variable");
+                }
             }
         }
     }

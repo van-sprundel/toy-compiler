@@ -1,8 +1,8 @@
 use std::io::ErrorKind;
 
 use crate::*;
-use crate::ast::{Function};
-
+use crate::ast::Function;
+use crate::memory::Memory;
 
 pub trait Compile {
     type Output;
@@ -22,17 +22,18 @@ pub trait Compile {
 }
 
 pub struct Interpreter;
-
 impl Compile for Interpreter {
     type Output = Result<i32, std::io::Error>;
 
     fn from_ast(ast: Result<Vec<Function>, std::io::Error>) -> Self::Output {
-        let evaluator = parser::Eval::default();
+        let mut memory = Memory::new();
+        let mut evaluator = parser::Eval::new(memory);
         match ast {
             Ok(ast) => {
                 for function in ast {
-                    for vars in function.vars {
-                        evaluator.eval(&vars.expr);
+                    for var in function.vars {
+                        evaluator.memory.add(&var);
+                        evaluator.eval(&var.expr);
                     }
                     for expr in function.exprs{
                         evaluator.eval(&expr);
@@ -106,5 +107,18 @@ mod tests {
     fn printing_from_rs_file() {
         let file = std::fs::read_to_string("./static/example_print.rs").unwrap();
         assert!(Interpreter::from_source(&file).is_ok());
+    }
+
+    #[test]
+    fn have_two_functions_in_one_file() {
+        assert!(Interpreter::from_source("fn main(){let s = 2;} fn foo(name:int){let p = 2;}").is_ok());
+    }
+
+
+    #[test]
+    fn guarantee_main_function_is_first() {
+        let a = Interpreter::from_source(" fn main(){let s = 2;} fn foo(name:int){let p = 2;}").unwrap();
+        let b = Interpreter::from_source("fn foo(name:int){let p = 2;} fn main(){let s = 2;} ").unwrap();
+        assert_eq!(a,b);
     }
 }

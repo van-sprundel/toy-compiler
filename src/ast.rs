@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug)]
 pub struct Function {
@@ -8,7 +8,7 @@ pub struct Function {
     pub exprs: Vec<Expr>,
     pub ret: i32,
 }
-
+#[derive(Clone)]
 pub struct Var {
     pub(crate) name: String,
     pub(crate) expr: Expr,
@@ -17,14 +17,15 @@ pub struct Var {
 impl Debug for Var {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.expr {
-            Expr::Unary { child, op } => { write!(f, "var {} = {:?}{:?}", &self.name, child, op) }
-            Expr::Binary { lhs, op, rhs } => { write!(f, "let {} = {:?}, {:?}, {:?}", &self.name, lhs, op, rhs) }
-            Expr::Literal(s) => { write!(f, "var {} = {}", &self.name, s) }
-            Expr::Reference(s) => { write!(f, "var {} = {}", &self.name, s) }
+            Expr::Unary { child, op } => { write!(f, "let {} = {:?}{:?}", &self.name, child, op) }
+            Expr::Binary { lhs, op, rhs } => { write!(f, "let {} = {:?} {:?} {:?}", &self.name, lhs, op, rhs) }
+            Expr::Literal(s) => { write!(f, "let {} = {}", &self.name, s) }
+            Expr::Reference(s) => { write!(f, "let {} = {}", &self.name, s) }
         }
     }
 }
 
+#[derive(Clone)]
 pub enum Expr {
     Unary {
         child: Box<Expr>,
@@ -65,6 +66,7 @@ impl Debug for Expr {
     }
 }
 
+#[derive(Clone)]
 pub enum Operator {
     Add,
     // addition         | +     | binary | unary
